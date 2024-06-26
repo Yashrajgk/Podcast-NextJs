@@ -97,8 +97,8 @@ Make sure you have the following installed on your machine:
 **Cloning the Repository**
 
 ```bash
-git clone https://github.com/deepsingh132/aionair.git
-cd aionair
+git clone https://github.com/Yashrajgk/Podcast-NextJs.git
+cd Podcast-NextJs
 ```
 
 **Installation**
