@@ -24,16 +24,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { use, useState } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import GeneratePodcast from "@/components/GeneratePodcast"
 import GenerateThumbnail from "@/components/GenerateThumbnail"
-import { Loader } from "lucide-react"
+import { Loader, Lock, LockKeyhole } from "lucide-react"
 import { Id } from "@/convex/_generated/dataModel"
 import { useToast } from "@/components/ui/use-toast"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useRouter } from "next/navigation"
+import { useIsSubscribed } from "@/hooks/useIsSubscribed"
+import { useClerk } from "@clerk/nextjs"
 
 const voiceCategories = ['alloy', 'shimmer', 'nova', 'echo', 'fable', 'onyx'];
 
@@ -47,19 +49,24 @@ const CreatePodcast = () => {
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageStorageId, setImageStorageId] = useState<Id<"_storage"> | null>(null)
   const [imageUrl, setImageUrl] = useState('');
-  
+
   const [audioUrl, setAudioUrl] = useState('');
   const [audioStorageId, setAudioStorageId] = useState<Id<"_storage"> | null>(null)
   const [audioDuration, setAudioDuration] = useState(0);
-  
+
   const [voiceType, setVoiceType] = useState<string | null>(null);
   const [voicePrompt, setVoicePrompt] = useState('');
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createPodcast = useMutation(api.podcasts.createPodcast)
 
+  const { user } = useClerk();
+
+  const isSubscribed = useIsSubscribed(user?.id!);
+
   const { toast } = useToast()
+
   // 1. Define your form.
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -68,10 +75,11 @@ const CreatePodcast = () => {
       podcastDescription: "",
     },
   })
- 
+
   async function onSubmit(data: z.infer<typeof formSchema>) {
     try {
       setIsSubmitting(true);
+
       if(!audioUrl || !imageUrl || !voiceType) {
         toast({
           title: 'Please generate audio and image',
@@ -96,10 +104,11 @@ const CreatePodcast = () => {
       toast({ title: 'Podcast created' })
       setIsSubmitting(false);
       router.push('/')
-    } catch (error) {
-      console.log(error);
+    } catch (error : any) {
+      console.error(error.message);
       toast({
         title: 'Error',
+        description: error.message? error.message : "Unknown error",
         variant: 'destructive',
       })
       setIsSubmitting(false);
@@ -111,16 +120,25 @@ const CreatePodcast = () => {
       <h1 className="text-20 font-bold text-white-1">Create Podcast</h1>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-12 flex w-full flex-col">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="mt-12 flex w-full flex-col"
+        >
           <div className="flex flex-col gap-[30px] border-b border-black-5 pb-10">
             <FormField
               control={form.control}
               name="podcastTitle"
               render={({ field }) => (
                 <FormItem className="flex flex-col gap-2.5">
-                  <FormLabel className="text-16 font-bold text-white-1">Title</FormLabel>
+                  <FormLabel className="text-16 font-bold text-white-1">
+                    Title
+                  </FormLabel>
                   <FormControl>
-                    <Input className="input-class focus-visible:ring-offset-orange-1" placeholder="JSM Pro Podcast" {...field} />
+                    <Input
+                      className="input-class focus-visible:ring-offset-[--accent-color]"
+                      placeholder="The Joe Rogan Podcast"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage className="text-white-1" />
                 </FormItem>
@@ -133,18 +151,36 @@ const CreatePodcast = () => {
               </Label>
 
               <Select onValueChange={(value) => setVoiceType(value)}>
-                <SelectTrigger className={cn('text-16 w-full border-none bg-black-1 text-gray-1 focus-visible:ring-offset-orange-1')}>
-                  <SelectValue placeholder="Select AI Voice" className="placeholder:text-gray-1 " />
+                <SelectTrigger
+                  className={cn(
+                    "text-16 w-full border-none bg-black-1 text-gray-1 focus-visible:ring-offset-[--accent-color]"
+                  )}
+                >
+                  <SelectValue
+                    placeholder="Select AI Voice"
+                    className="placeholder:text-gray-1 "
+                  />
                 </SelectTrigger>
-                <SelectContent className="text-16 border-none bg-black-1 font-bold text-white-1 focus:ring-orange-1">
+                <SelectContent className="text-16 flex border-none bg-black-1 font-bold text-white-1 focus:ring-[--accent-color]">
                   {voiceCategories.map((category) => (
-                    <SelectItem key={category} value={category} className="capitalize focus:bg-orange-1">
+                    <SelectItem
+                      // disable all voices except alloy for non-subscribed users
+                      disabled={ false}
+                      key={category}
+                      value={category}
+                      className="capitalize relative  flex items-center focus:bg-[--accent-color]"
+                    >
+                     
+                        <span className="absolute left-0 top-0 bottom-0 inline-flex items-center justify-center">
+                          
+                        </span>
+                      
                       {category}
                     </SelectItem>
                   ))}
                 </SelectContent>
                 {voiceType && (
-                  <audio 
+                  <audio
                     src={`/${voiceType}.mp3`}
                     autoPlay
                     className="hidden"
@@ -158,9 +194,15 @@ const CreatePodcast = () => {
               name="podcastDescription"
               render={({ field }) => (
                 <FormItem className="flex flex-col gap-2.5">
-                  <FormLabel className="text-16 font-bold text-white-1">Description</FormLabel>
+                  <FormLabel className="text-16 font-bold text-white-1">
+                    Description
+                  </FormLabel>
                   <FormControl>
-                    <Textarea className="input-class focus-visible:ring-offset-orange-1" placeholder="Write a short podcast description" {...field} />
+                    <Textarea
+                      className="input-class focus-visible:ring-offset-[--accent-color]"
+                      placeholder="Write a short podcast description"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage className="text-white-1" />
                 </FormItem>
@@ -168,41 +210,44 @@ const CreatePodcast = () => {
             />
           </div>
           <div className="flex flex-col pt-10">
-              <GeneratePodcast 
-                setAudioStorageId={setAudioStorageId}
-                setAudio={setAudioUrl}
-                voiceType={voiceType!}
-                audio={audioUrl}
-                voicePrompt={voicePrompt}
-                setVoicePrompt={setVoicePrompt}
-                setAudioDuration={setAudioDuration}
-              />
+            <GeneratePodcast
+              setAudioStorageId={setAudioStorageId}
+              setAudio={setAudioUrl}
+              voiceType={voiceType!}
+              audio={audioUrl}
+              voicePrompt={voicePrompt}
+              setVoicePrompt={setVoicePrompt}
+              setAudioDuration={setAudioDuration}
+            />
 
-              <GenerateThumbnail 
-               setImage={setImageUrl}
-               setImageStorageId={setImageStorageId}
-               image={imageUrl}
-               imagePrompt={imagePrompt}
-               setImagePrompt={setImagePrompt}
-              />
+            <GenerateThumbnail
+              setImage={setImageUrl}
+              setImageStorageId={setImageStorageId}
+              image={imageUrl}
+              imagePrompt={imagePrompt}
+              setImagePrompt={setImagePrompt}
+            />
 
-              <div className="mt-10 w-full">
-                <Button type="submit" className="text-16 w-full bg-orange-1 py-4 font-extrabold text-white-1 transition-all duration-500 hover:bg-black-1">
-                  {isSubmitting ? (
-                    <>
-                      Submitting
-                      <Loader size={20} className="animate-spin ml-2" />
-                    </>
-                  ) : (
-                    'Submit & Publish Podcast'
-                  )}
-                </Button>
-              </div>
+            <div className="mt-10 w-full">
+              <Button
+                type="submit"
+                className="text-16 w-full bg-[--accent-color] py-4 font-extrabold text-white-1 transition-all duration-500 hover:bg-black-1"
+              >
+                {isSubmitting ? (
+                  <>
+                    Submitting
+                    <Loader size={20} className="animate-spin ml-2" />
+                  </>
+                ) : (
+                  "Submit & Publish Podcast"
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </Form>
     </section>
-  )
+  );
 }
 
 export default CreatePodcast
