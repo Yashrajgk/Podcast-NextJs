@@ -28,16 +28,9 @@ const useGeneratePodcast = ({
     setIsGenerating(true);
     setAudio('');
 
-    if(!voiceType) {
-      toast({
-        title: "Please select a voice type to generate a podcast",
-      })
-      return setIsGenerating(false);
-    }
-
     if(!voicePrompt) {
       toast({
-        title: "Please provide a prompt to generate podcast",
+        title: "Please provide a voiceType to generate a podcast",
       })
       return setIsGenerating(false);
     }
@@ -53,7 +46,6 @@ const useGeneratePodcast = ({
       const file = new File([blob], fileName, { type: 'audio/mpeg' });
 
       const uploaded = await startUpload([file]);
-
       const storageId = (uploaded[0].response as any).storageId;
 
       setAudioStorageId(storageId);
@@ -64,15 +56,15 @@ const useGeneratePodcast = ({
       toast({
         title: "Podcast generated successfully",
       })
-    } catch (error: any) {
-      console.error('Error generating podcast', error)
+    } catch (error) {
+      console.log('Error generating podcast', error)
       toast({
-        title: "Error creating the podcast",
+        title: "Error creating a podcast",
         variant: 'destructive',
       })
       setIsGenerating(false);
     }
-
+    
   }
 
   return { isGenerating, generatePodcast }
@@ -87,16 +79,16 @@ const GeneratePodcast = (props: GeneratePodcastProps) => {
         <Label className="text-16 font-bold text-white-1">
           AI Prompt to generate Podcast
         </Label>
-        <Textarea
-          className="input-class font-light focus-visible:ring-offset-[--accent-color]"
-          placeholder='Input text to generate audio'
+        <Textarea 
+          className="input-class font-light focus-visible:ring-offset-orange-1"
+          placeholder='Provide text to generate audio'
           rows={5}
           value={props.voicePrompt}
           onChange={(e) => props.setVoicePrompt(e.target.value)}
         />
       </div>
       <div className="mt-5 w-full max-w-[200px]">
-      <Button className="text-16 bg-[--accent-color] py-4 font-bold text-white-1" onClick={generatePodcast}>
+      <Button type="submit" className="text-16 bg-orange-1 py-4 font-bold text-white-1" onClick={generatePodcast}>
         {isGenerating ? (
           <>
             Generating
@@ -108,7 +100,7 @@ const GeneratePodcast = (props: GeneratePodcastProps) => {
       </Button>
       </div>
       {props.audio && (
-        <audio
+        <audio 
           controls
           src={props.audio}
           autoPlay
